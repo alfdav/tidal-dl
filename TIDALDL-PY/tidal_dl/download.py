@@ -670,8 +670,6 @@ class Download:
         list_total: int = 0,
         event_stop: Event | None = None,
         duplicate_action_override: str | None = None,
-        is_playlist: bool = False,
-        playlist_name: str = "",
     ) -> tuple[DownloadOutcome, pathlib.Path | str]:
         """Download a single media item, handling file naming, skipping, and post-processing.
 
@@ -688,8 +686,6 @@ class Download:
             list_position (int, optional): Position in list. Defaults to 0.
             list_total (int, optional): Total items in list. Defaults to 0.
             event_stop (Event | None, optional): Event to stop the download. Defaults to None.
-            is_playlist (bool, optional): Whether this track is part of a playlist. Defaults to False.
-            playlist_name (str, optional): Playlist name for metadata override. Defaults to "".
 
         Returns:
             tuple[DownloadOutcome, pathlib.Path | str]: (Outcome, path to file)
@@ -763,8 +759,6 @@ class Download:
             is_parent_album,
             file_extension_dummy,
             event_stop,
-            is_playlist=is_playlist,
-            playlist_name=playlist_name,
         )
 
         # Step 5: Post-processing
@@ -1004,8 +998,6 @@ class Download:
         is_parent_album: bool,
         file_extension_dummy: str,
         event_stop: Event | None = None,
-        is_playlist: bool = False,
-        playlist_name: str = "",
     ) -> bool:
         """Download and process media file.
 
@@ -1016,8 +1008,6 @@ class Download:
             is_parent_album (bool): Whether this is a parent album.
             file_extension_dummy (str): Dummy file extension.
             event_stop (Event | None, optional): Event to stop the download. Defaults to None.
-            is_playlist (bool, optional): Whether this track is part of a playlist. Defaults to False.
-            playlist_name (str, optional): Playlist name for metadata override. Defaults to "".
 
         Returns:
             bool: Whether download was successful.
@@ -1047,8 +1037,6 @@ class Download:
             is_parent_album,
             media_stream,
             event_stop,
-            is_playlist=is_playlist,
-            playlist_name=playlist_name,
         )
 
     def _get_stream_info(self, media: Track | Video) -> tuple[StreamManifest | None, str, bool, Stream | None]:
@@ -1223,8 +1211,6 @@ class Download:
         is_parent_album: bool,
         media_stream: Stream | None,
         event_stop: Event | None = None,
-        is_playlist: bool = False,
-        playlist_name: str = "",
     ) -> bool:
         """Perform the actual download and processing.
 
@@ -1236,8 +1222,6 @@ class Download:
             is_parent_album (bool): Whether this is a parent album.
             media_stream (Stream | None): Media stream.
             event_stop (Event | None, optional): Event to stop the download. Defaults to None.
-            is_playlist (bool, optional): Whether this track is part of a playlist. Defaults to False.
-            playlist_name (str, optional): Playlist name for metadata override. Defaults to "".
 
         Returns:
             bool: Whether download was successful.
@@ -1267,7 +1251,7 @@ class Download:
                 tmp_path_file = self._extract_flac(tmp_path_file)
 
             # Handle metadata, lyrics, and cover
-            self._handle_metadata_and_extras(media, tmp_path_file, path_media_dst, is_parent_album, media_stream, is_playlist, playlist_name)
+            self._handle_metadata_and_extras(media, tmp_path_file, path_media_dst, is_parent_album, media_stream)
 
             self.fn_logger.info(f"Downloaded item '{name_builder_item(media)}'.")
 
@@ -1283,8 +1267,6 @@ class Download:
         path_media_dst: pathlib.Path,
         is_parent_album: bool,
         media_stream: Stream | None,
-        is_playlist: bool = False,
-        playlist_name: str = "",
     ) -> None:
         """Handle metadata, lyrics, and cover processing.
 
@@ -1294,8 +1276,6 @@ class Download:
             path_media_dst (pathlib.Path): Destination file path.
             is_parent_album (bool): Whether this is a parent album.
             media_stream (Stream | None): Media stream.
-            is_playlist (bool, optional): Whether this track is part of a playlist. Defaults to False.
-            playlist_name (str, optional): Playlist name for metadata override. Defaults to "".
         """
         if isinstance(media, Video):
             return
@@ -1306,7 +1286,7 @@ class Download:
         # Write metadata to file.  media_stream may be None for Hi-Fi API
         # downloads; metadata_write handles this gracefully.
         result_metadata, tmp_path_lyrics, tmp_path_cover = self.metadata_write(
-            media, tmp_path_file, is_parent_album, media_stream, is_playlist=is_playlist, playlist_name=playlist_name
+            media, tmp_path_file, is_parent_album, media_stream
         )
 
         # Move lyrics file
@@ -1593,7 +1573,6 @@ class Download:
 
     def metadata_write(
         self, track: Track, path_media: pathlib.Path, is_parent_album: bool, media_stream: Stream | None = None,
-        is_playlist: bool = False, playlist_name: str = "",
     ) -> tuple[bool, pathlib.Path | None, pathlib.Path | None]:
         """Write metadata, lyrics, and cover to a media file.
 
@@ -1603,8 +1582,6 @@ class Download:
             is_parent_album (bool): Whether this is a parent album.
             media_stream (Stream | None): Stream object. May be None for Hi-Fi API downloads;
                 replay gain fields use neutral defaults when unavailable.
-            is_playlist (bool, optional): Whether this track is part of a playlist. Defaults to False.
-            playlist_name (str, optional): Playlist name used as album name override. Defaults to "".
 
         Returns:
             tuple[bool, pathlib.Path | None, pathlib.Path | None]: (Success, path to lyrics, path to cover)
@@ -1671,15 +1648,7 @@ class Download:
         title = name_builder_title(track)
         title += METADATA_EXPLICIT if explicit and self.settings.data.mark_explicit else ""
 
-        # For playlists, set the album artist to "Various Artists", override the album
-        # name with the playlist name, and mark as compilation so music players like
-        # Plex/Plexamp group all tracks under one entry instead of scattering them.
-        albumartist = (
-            "Various Artists"
-            if is_playlist
-            else name_builder_album_artist(track, delimiter=self.settings.data.metadata_delimiter_album_artist)
-        )
-        album_name = playlist_name if is_playlist and playlist_name else (track.album.name if track.album else "")
+        albumartist = name_builder_album_artist(track, delimiter=self.settings.data.metadata_delimiter_album_artist)
 
         # `None` values are not allowed.
         m: Metadata = Metadata(
@@ -1690,7 +1659,7 @@ class Download:
             copy_right=copy_right,
             title=title,
             artists=name_builder_artist(track, delimiter=self.settings.data.metadata_delimiter_artist),
-            album=album_name,
+            album=track.album.name if track.album else "",
             tracknumber=track.track_num,
             date=release_date,
             isrc=isrc,
@@ -1706,7 +1675,6 @@ class Download:
             url_share=track.share_url if track.share_url and self.settings.data.metadata_write_url else "",
             replay_gain_write=self.settings.data.metadata_replay_gain,
             upc=track.album.upc if track.album and track.album.upc else "",
-            compilation=is_playlist,
             explicit=explicit,
             bpm=track.bpm if track.bpm else 0,
             initial_key=format_initial_key(track.key, track.key_scale, self.settings.data.initial_key_format),
@@ -1982,7 +1950,6 @@ class Download:
         # Download configuration
         is_album: bool = isinstance(media, Album)
         is_playlist: bool = isinstance(media, Playlist | UserPlaylist)
-        playlist_name: str = list_media_name if is_playlist else ""
         sort_by_track_num: bool = bool("album_track_num" in file_name_relative or "list_pos" in file_name_relative)
         list_total: int = len(items)
 
@@ -2003,8 +1970,6 @@ class Download:
             summary,
             checkpoint,
             resolved_actions=resolved_actions,
-            is_playlist=is_playlist,
-            playlist_name=playlist_name,
         )
 
         # Clean up checkpoint if all tracks succeeded.
@@ -2015,25 +1980,6 @@ class Download:
         # folder), or when explicitly requested via the playlist_create setting.
         if is_playlist or self.settings.data.playlist_create:
             self.playlist_populate(set(result_dirs), list_media_name, is_album, sort_by_track_num)
-
-        # Save playlist cover art as poster.jpg so Plex/Plexamp uses the playlist's
-        # own artwork instead of a random track's album art.
-        if is_playlist and result_dirs:
-            try:
-                playlist_image_url = media.image(int(CoverDimensions.Px1280))
-                poster_data = self.cover_data(url=playlist_image_url)
-                if poster_data:
-                    # Determine playlist root directory (common parent of all result dirs).
-                    if len(set(result_dirs)) > 1:
-                        playlist_root = pathlib.Path(os.path.commonpath([str(d) for d in result_dirs]))
-                    else:
-                        playlist_root = result_dirs[0]
-                    poster_path = playlist_root / "poster.jpg"
-                    if not poster_path.exists():
-                        poster_path.write_bytes(poster_data)
-                        self.fn_logger.debug(f"Saved playlist cover: {poster_path}")
-            except Exception:
-                self.fn_logger.debug(f"Could not save playlist cover for '{list_media_name}'.")
 
         # Persist ISRC index after all collection downloads complete
         if self.settings.data.skip_duplicate_isrc:
@@ -2110,8 +2056,6 @@ class Download:
         summary: DownloadSummary | None = None,
         checkpoint: DownloadCheckpoint | None = None,
         resolved_actions: dict[str, str] | None = None,
-        is_playlist: bool = False,
-        playlist_name: str = "",
     ) -> list[pathlib.Path]:
         """Execute downloads for all items in the collection.
 
@@ -2181,8 +2125,6 @@ class Download:
                         list_total=list_total,
                         event_stop=event_stop,
                         duplicate_action_override=override,
-                        is_playlist=is_playlist,
-                        playlist_name=playlist_name,
                     )
                     future_to_item[future] = item_media
 
