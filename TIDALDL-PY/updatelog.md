@@ -6,6 +6,12 @@ pip install git+https://github.com/alfdav/Tidal-Media-Downloader.git#subdirector
 
 #### v3.1.0 (2026)
 
+**Playlist Compilation Recognition**
+- Playlist tracks are now automatically tagged as compilations: FLAC (`COMPILATION`), MP3 (`TCMP`), MP4 (`cpil`)
+- Album artist is set to "Various Artists" for playlist tracks so music players group them correctly
+- M3U playlist file is now always generated for playlist downloads (regardless of `playlist_create` setting)
+- Albums and mixes still respect the `playlist_create` setting for M3U generation
+
 **Library Scanner**
 - New `tidal-dl scan` subcommand group for seeding the ISRC duplicate index from existing music files
 - New `tidal_dl/helper/library_scanner.py` module: reads ISRCs from FLAC (Vorbis Comment `ISRC`), MP3 (ID3 `TSRC`), MP4/M4A (iTunes `isrc` atom), and OGG files using mutagen

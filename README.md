@@ -204,7 +204,7 @@ Config is stored at `~/.config/tidal-dl/settings.json`. Use `tidal-dl cfg` to vi
 | `video_download` | `true` | Allow download of videos |
 | `lyrics_embed` | `false` | Embed synced lyrics in audio tags |
 | `lyrics_file` | `false` | Save lyrics as a separate `.lrc` file |
-| `playlist_create` | `false` | Generate M3U playlist files |
+| `playlist_create` | `false` | Generate M3U playlist files for albums and mixes (playlists always generate an M3U automatically) |
 | `symlink_to_track` | `false` | Create a symlink to the track inside the playlist folder |
 | `downloads_concurrent_max` | `3` | Maximum parallel downloads |
 | `downloads_simultaneous_per_track_max` | `20` | Maximum simultaneous chunk downloads per track |
@@ -324,11 +324,16 @@ Metadata written to all downloaded files (FLAC, MP3, MP4):
 - Track number / total, disc number / total
 - Release date, ISRC, copyright, composer
 - Cover art (embedded)
+- Compilation flag (playlist tracks are automatically marked as compilations with album artist set to "Various Artists")
 - Synced and unsynced lyrics (when `lyrics_embed = true`)
 - BPM, initial key (Camelot notation), replay gain
 - UPC (album barcode), Tidal share URL
 
-MP3-specific tags: `TPE2` (album artist), `TPOS` (disc number), `WOAS` (share URL), `TRCK` written as `N/total`.
+MP3-specific tags: `TPE2` (album artist), `TPOS` (disc number), `WOAS` (share URL), `TRCK` written as `N/total`, `TCMP` (compilation flag).
+
+MP4-specific atoms: `aART` (album artist), `cpil` (compilation flag).
+
+FLAC Vorbis Comment: `COMPILATION` tag.
 
 ---
 
@@ -343,6 +348,7 @@ MP3-specific tags: `TPE2` (album artist), `TPOS` (disc number), `WOAS` (share UR
 - **Dual download sources** — Hi-Fi API (public proxy, stateless) handles both metadata and streaming by default; OAuth serves as an automatic fallback
 - **Hi-Fi API instance rotation** — auto-discovers live instances from uptime trackers; dead instances are quarantined and skipped automatically
 - **Playlist import** — import from Spotify, Apple Music, or any platform via CSV/TSV or `Artist - Title` text files
+- **Playlist compilation recognition** — playlist tracks are automatically tagged as compilations (FLAC `COMPILATION`, MP3 `TCMP`, MP4 `cpil`) with album artist set to "Various Artists", and an M3U file is always generated; music players correctly group the folder as a compilation
 - **Multi-disc M3U** — when `playlist_create = true`, a single consolidated M3U is written at the album root with relative paths; works correctly across multi-disc albums
 - **Download checkpointing** — interrupted collection downloads can resume from where they left off
 - **API response caching** — in-memory TTL cache reduces redundant HTTP calls during a session
