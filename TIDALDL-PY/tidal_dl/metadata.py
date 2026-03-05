@@ -4,7 +4,7 @@ import pathlib
 
 import mutagen
 from mutagen import flac, id3, mp4
-from mutagen.id3 import APIC, SYLT, TALB, TBPM, TCOM, TCOP, TDRC, TIT2, TKEY, TPE1, TPE2, TPOS, TRCK, TSRC, TXXX, USLT, WOAS
+from mutagen.id3 import APIC, SYLT, TALB, TBPM, TCMP, TCOM, TCOP, TDRC, TIT2, TKEY, TPE1, TPE2, TPOS, TRCK, TSRC, TXXX, USLT, WOAS
 
 
 class Metadata:
@@ -45,6 +45,7 @@ class Metadata:
     replay_gain_write: bool
     upc: str
     target_upc: dict[str, str]
+    compilation: bool
     explicit: bool
     bpm: int
     initial_key: str
@@ -76,6 +77,7 @@ class Metadata:
         url_share: str = "",
         replay_gain_write: bool = True,
         upc: str = "",
+        compilation: bool = False,
         explicit: bool = False,
         bpm: int = 0,
         initial_key: str = "",
@@ -104,6 +106,7 @@ class Metadata:
         self.replay_gain_write = replay_gain_write
         self.upc = upc
         self.target_upc = target_upc
+        self.compilation = compilation
         self.explicit = explicit
         self.bpm = bpm
         self.initial_key = initial_key
@@ -174,6 +177,7 @@ class Metadata:
         self.m.tags[self.target_upc["FLAC"]] = self.upc
         self.m.tags["BPM"] = str(self.bpm if self.bpm > 0 else "")
         self.m.tags["INITIALKEY"] = self.initial_key
+        self.m.tags["COMPILATION"] = "1" if self.compilation else "0"
 
         if self.replay_gain_write:
             self.m.tags["REPLAYGAIN_ALBUM_GAIN"] = str(self.album_replay_gain)
@@ -199,6 +203,7 @@ class Metadata:
         self.m.tags.add(TXXX(encoding=3, desc=self.target_upc["MP3"], text=self.upc))
         self.m.tags.add(TBPM(encoding=3, text=str(self.bpm if self.bpm > 0 else "")))
         self.m.tags.add(TKEY(encoding=3, text=self.initial_key))
+        self.m.tags.add(TCMP(encoding=3, text="1" if self.compilation else "0"))
 
         if self.replay_gain_write:
             self.m.tags.add(TXXX(encoding=3, desc="REPLAYGAIN_ALBUM_GAIN", text=str(self.album_replay_gain)))
@@ -223,6 +228,7 @@ class Metadata:
         self.m.tags["\xa9url"] = self.url_share
         self.m.tags[f"----:com.apple.iTunes:{self.target_upc['MP4']}"] = self.upc.encode("utf-8")
         self.m.tags["rtng"] = [1 if self.explicit else 0]
+        self.m.tags["cpil"] = self.compilation
 
         if self.bpm > 0:
             self.m.tags["tmpo"] = [self.bpm]
